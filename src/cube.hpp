@@ -1,9 +1,84 @@
+#pragma once
 #include <cstdint>
 #include <iostream>
 #include <random>
 #include <sstream>
 #include <string>
 
+enum Move : uint8_t { U1 = 0, U2, U3, D1, D2, D3, R1, R2, R3, L1, L2, L3, F1, F2, F3, B1, B2, B3 };
+
+inline Move get_inverse(Move m) {
+    uint8_t face = m / 3;
+    uint8_t turns = m % 3;
+    if (turns == 0)
+        return static_cast<Move>(face * 3 + 2);
+    if (turns == 1)
+        return m;
+    return static_cast<Move>(face * 3 + 0);
+}
+
+inline int get_face(Move m) { return m / 3; }
+
+inline Move str_to_move(const std::string &s) {
+    int face = 0;
+    switch (s[0]) {
+    case 'U':
+        face = 0;
+        break;
+    case 'D':
+        face = 1;
+        break;
+    case 'R':
+        face = 2;
+        break;
+    case 'L':
+        face = 3;
+        break;
+    case 'F':
+        face = 4;
+        break;
+    case 'B':
+        face = 5;
+        break;
+    }
+    int turns = 0;
+    if (s.size() > 1) {
+        if (s[1] == '2')
+            turns = 1;
+        else if (s[1] == '\'')
+            turns = 2;
+    }
+    return static_cast<Move>(face * 3 + turns);
+}
+
+inline std::string move_to_str(Move m) {
+    const char *faces = "UDRLFB";
+    std::string s = "";
+    s += faces[m / 3];
+    if (m % 3 == 1)
+        s += "2";
+    if (m % 3 == 2)
+        s += "'";
+    return s;
+}
+inline std::string scramble(int num) {
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
+    static std::uniform_int_distribution<int> dist(0, 17);
+    std::string out;
+    char exclude = 0;
+    std::string move = "\0";
+    for (int i = 0; i < num; i++) {
+        do {
+            exclude = move[0];
+            int num = dist(mt);
+            move = move_to_str(static_cast<Move>(num));
+        } while (move[0] == exclude);
+        out += move + ' ';
+    }
+    out.pop_back();
+    return out;
+}
 class Cube {
     uint8_t corners[8];
     uint8_t corner_orientation[8];
@@ -11,11 +86,11 @@ class Cube {
     uint8_t edges[12];
     uint8_t edge_orientation[12];
 
-    const char corner_colors[8][3] = {{'W', 'R', 'G'}, {'W', 'G', 'O'}, {'W', 'O', 'B'}, {'W', 'B', 'R'},
-                                      {'Y', 'G', 'R'}, {'Y', 'O', 'G'}, {'Y', 'B', 'O'}, {'Y', 'R', 'B'}};
+    static constexpr char corner_colors[8][3] = {{'W', 'R', 'G'}, {'W', 'G', 'O'}, {'W', 'O', 'B'}, {'W', 'B', 'R'},
+                                                 {'Y', 'G', 'R'}, {'Y', 'O', 'G'}, {'Y', 'B', 'O'}, {'Y', 'R', 'B'}};
 
-    const char edge_colors[12][2] = {{'W', 'R'}, {'W', 'G'}, {'W', 'O'}, {'W', 'B'}, {'Y', 'R'}, {'Y', 'G'},
-                                     {'Y', 'O'}, {'Y', 'B'}, {'G', 'R'}, {'G', 'O'}, {'B', 'O'}, {'B', 'R'}};
+    static constexpr char edge_colors[12][2] = {{'W', 'R'}, {'W', 'G'}, {'W', 'O'}, {'W', 'B'}, {'Y', 'R'}, {'Y', 'G'},
+                                                {'Y', 'O'}, {'Y', 'B'}, {'G', 'R'}, {'G', 'O'}, {'B', 'O'}, {'B', 'R'}};
 
     char getCornerColor(int pos, int face) const {
         int c = corners[pos];
@@ -82,37 +157,6 @@ class Cube {
             edge_orientation[b] ^= 1;
             edge_orientation[c] ^= 1;
             edge_orientation[d] ^= 1;
-        }
-    }
-
-    void apply_random() {
-        static std::random_device rd;
-        static std::mt19937 mt(rd());
-        static std::uniform_int_distribution<int> dist_m(1, 6);
-        static std::uniform_int_distribution<int> dist_n(1, 3);
-        int move = dist_m(mt);
-        int num = dist_n(mt);
-        switch (move) {
-        case 0:
-            R(num);
-            break;
-        case 1:
-            L(num);
-            break;
-        case 2:
-            F(num);
-            break;
-        case 3:
-            B(num);
-            break;
-        case 4:
-            U(num);
-            break;
-        case 5:
-            D(num);
-            break;
-        default:
-            break;
         }
     }
 
@@ -195,15 +239,93 @@ class Cube {
 
         for (int i = 0; i < 3; ++i)
             std::cout << sp << colorStr(f[0][i * 3]) << colorStr(f[0][i * 3 + 1]) << colorStr(f[0][i * 3 + 2]) << "\n";
-
         for (int i = 0; i < 3; ++i) {
             for (int j = 1; j <= 4; ++j)
                 std::cout << colorStr(f[j][i * 3]) << colorStr(f[j][i * 3 + 1]) << colorStr(f[j][i * 3 + 2]);
             std::cout << "\n";
         }
-
         for (int i = 0; i < 3; ++i)
             std::cout << sp << colorStr(f[5][i * 3]) << colorStr(f[5][i * 3 + 1]) << colorStr(f[5][i * 3 + 2]) << "\n";
+    }
+
+    void apply_move(Move m) {
+        switch (m) {
+        case U1:
+            U();
+            break;
+        case U2:
+            U_2();
+            break;
+        case U3:
+            U_prime();
+            break;
+        case D1:
+            D();
+            break;
+        case D2:
+            D_2();
+            break;
+        case D3:
+            D_prime();
+            break;
+        case R1:
+            R();
+            break;
+        case R2:
+            R_2();
+            break;
+        case R3:
+            R_prime();
+            break;
+        case L1:
+            L();
+            break;
+        case L2:
+            L_2();
+            break;
+        case L3:
+            L_prime();
+            break;
+        case F1:
+            F();
+            break;
+        case F2:
+            F_2();
+            break;
+        case F3:
+            F_prime();
+            break;
+        case B1:
+            B();
+            break;
+        case B2:
+            B_2();
+            break;
+        case B3:
+            B_prime();
+            break;
+        }
+    }
+
+    void apply_move(const std::string &s) { apply_move(str_to_move(s)); }
+
+    void apply_moves(const std::string &s) {
+        std::stringstream ss(s);
+        std::string st;
+        while (ss >> st)
+            apply_move(st);
+    }
+
+    void apply_random() {
+        static std::random_device rd;
+        static std::mt19937 mt(rd());
+        static std::uniform_int_distribution<int> dist(0, 17);
+        apply_move(static_cast<Move>(dist(mt)));
+    }
+
+    void scramble(int n) {
+        for (int i = 0; i < n; i++)
+            apply_random();
     }
 
     void U() {
@@ -226,78 +348,11 @@ class Cube {
         cycle_corners(1, 0, 4, 5, 2, 1, 2, 1);
         cycle_edges(1, 8, 5, 9, 1);
     }
-
     void B() {
         cycle_corners(3, 2, 6, 7, 2, 1, 2, 1);
         cycle_edges(3, 10, 7, 11, 1);
     }
-    void apply_move(std::string s) {
-        int num = 1;
-        if (s.size() == 2) {
-            if (s[1] == '2')
-                num = 2;
-            else if (s[1] == '\'')
-                num = 3;
-        }
-        switch (s[0]) {
-        case 'R':
-            R(num);
-            break;
-        case 'L':
-            L(num);
-            break;
-        case 'F':
-            F(num);
-            break;
-        case 'B':
-            B(num);
-            break;
-        case 'U':
-            U(num);
-            break;
-        case 'D':
-            D(num);
-            break;
-        default:
-            break;
-        }
-    }
-    void scramble(int n) {
-        for (int i = 0; i < n; i++)
-            apply_random();
-    }
-    void apply_moves(std::string s) {
-        std::stringstream ss;
-        ss << s;
-        std::string st;
-        while (ss >> st) {
-            apply_move(st);
-        }
-    }
-    void U(int n) {
-        for (int i = 0; i < n; i++)
-            U();
-    }
-    void D(int n) {
-        for (int i = 0; i < n; i++)
-            D();
-    }
-    void R(int n) {
-        for (int i = 0; i < n; i++)
-            R();
-    }
-    void L(int n) {
-        for (int i = 0; i < n; i++)
-            L();
-    }
-    void F(int n) {
-        for (int i = 0; i < n; i++)
-            F();
-    }
-    void B(int n) {
-        for (int i = 0; i < n; i++)
-            B();
-    }
+
     void R_2() {
         R();
         R();
@@ -351,5 +406,31 @@ class Cube {
         B();
         B();
         B();
+    }
+
+    // Kept for backward compatibility
+    void U(int n) {
+        for (int i = 0; i < n; i++)
+            U();
+    }
+    void D(int n) {
+        for (int i = 0; i < n; i++)
+            D();
+    }
+    void R(int n) {
+        for (int i = 0; i < n; i++)
+            R();
+    }
+    void L(int n) {
+        for (int i = 0; i < n; i++)
+            L();
+    }
+    void F(int n) {
+        for (int i = 0; i < n; i++)
+            F();
+    }
+    void B(int n) {
+        for (int i = 0; i < n; i++)
+            B();
     }
 };
