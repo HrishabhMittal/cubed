@@ -67,13 +67,12 @@ inline std::string scramble(int num) {
     static std::uniform_int_distribution<int> dist(0, 17);
     std::string out;
     char exclude = 0;
-    std::string move = "\0";
     for (int i = 0; i < num; i++) {
+        std::string move;
         do {
-            exclude = move[0];
-            int num = dist(mt);
-            move = move_to_str(static_cast<Move>(num));
+            move = move_to_str(static_cast<Move>(dist(mt)));
         } while (move[0] == exclude);
+        exclude = move[0];
         out += move + ' ';
     }
     out.pop_back();
