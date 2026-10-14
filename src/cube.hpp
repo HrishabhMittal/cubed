@@ -66,16 +66,29 @@ inline std::string scramble(int num) {
     static std::mt19937 mt(rd());
     static std::uniform_int_distribution<int> dist(0, 17);
     std::string out;
-    char exclude = 0;
+    // Face order UDRLFB: opposite faces share an axis (face/2).
+    int prev_face = -1;
+    int prev_prev_face = -1;
     for (int i = 0; i < num; i++) {
-        std::string move;
+        Move m;
+        int face;
         do {
-            move = move_to_str(static_cast<Move>(dist(mt)));
-        } while (move[0] == exclude);
-        exclude = move[0];
-        out += move + ' ';
+            m = static_cast<Move>(dist(mt));
+            face = get_face(m);
+            if (face == prev_face)
+                continue; // no "... U U2 ..."
+            // no "... U D U ..." (three moves on the same axis)
+            if (prev_face >= 0 && prev_prev_face >= 0 && face / 2 == prev_face / 2 &&
+                prev_face / 2 == prev_prev_face / 2)
+                continue;
+            break;
+        } while (true);
+        if (i)
+            out += ' ';
+        out += move_to_str(m);
+        prev_prev_face = prev_face;
+        prev_face = face;
     }
-    out.pop_back();
     return out;
 }
 class Cube {
@@ -169,6 +182,30 @@ class Cube {
             edges[i] = i;
             edge_orientation[i] = 0;
         }
+    }
+
+    uint8_t corner(int i) const { return corners[i]; }
+    uint8_t corner_ori(int i) const { return corner_orientation[i]; }
+    uint8_t edge(int i) const { return edges[i]; }
+    uint8_t edge_ori(int i) const { return edge_orientation[i]; }
+
+    void set_corner(int i, uint8_t perm, uint8_t ori) {
+        corners[i] = perm;
+        corner_orientation[i] = ori;
+    }
+    void set_edge(int i, uint8_t perm, uint8_t ori) {
+        edges[i] = perm;
+        edge_orientation[i] = ori;
+    }
+
+    bool is_solved() const {
+        for (int i = 0; i < 8; ++i)
+            if (corners[i] != i || corner_orientation[i] != 0)
+                return false;
+        for (int i = 0; i < 12; ++i)
+            if (edges[i] != i || edge_orientation[i] != 0)
+                return false;
+        return true;
     }
 
     void print() const {
